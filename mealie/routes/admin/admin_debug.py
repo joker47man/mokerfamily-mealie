@@ -13,7 +13,6 @@ from mealie.services.llm_providers import (
     is_llm_image_services_enabled,
     is_llm_provider_enabled,
 )
-from mealie.services.openai import OpenAILocalImage, OpenAIService
 
 router = APIRouter(prefix="/debug")
 

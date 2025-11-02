@@ -95,14 +95,23 @@ def get_llm_service() -> BaseLLMService:
     
     if configured_provider:
         provider_key = configured_provider.lower()
+        
+        # Validate that the configured provider is actually enabled
+        if provider_key not in provider_states:
+            raise ValueError(f"Unknown LLM provider: {configured_provider}")
+        
+        if not provider_states[provider_key]:
+            raise ValueError(
+                f"LLM provider '{configured_provider}' is configured but not enabled. "
+                f"Please check that {configured_provider.upper()}_API_KEY is set."
+            )
+        
         if provider_key == "openai":
             return OpenAIProvider()
         elif provider_key == "claude":
             return ClaudeProvider()
         elif provider_key == "gemini":
             return GeminiProvider()
-        else:
-            raise ValueError(f"Unknown LLM provider: {configured_provider}")
     
     # Fall back to auto-detection for backwards compatibility
     if provider_states["openai"]:

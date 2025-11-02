@@ -30,6 +30,12 @@ from mealie.schema.recipe.request_helpers import RecipeDuplicate
 from mealie.schema.user.user import PrivateUser, UserRatingCreate
 from mealie.services._base_service import BaseService
 from mealie.services.household_services.household_service import HouseholdService
+from mealie.services.llm_providers import (
+    LLMDataInjection,
+    LLMLocalImage,
+    get_llm_service,
+    is_llm_image_services_enabled,
+)
 from mealie.services.openai import OpenAIDataInjection, OpenAILocalImage, OpenAIService
 from mealie.services.recipe.recipe_data_service import RecipeDataService
 from mealie.services.scraper import cleaner
@@ -480,18 +486,17 @@ class OpenAIRecipeService(RecipeServiceBase):
         )
 
     async def build_recipe_from_images(self, images: list[Path], translate_language: str | None) -> Recipe:
-        settings = get_app_settings()
-        if not (settings.OPENAI_ENABLED and settings.OPENAI_ENABLE_IMAGE_SERVICES):
-            raise ValueError("OpenAI image services are not available")
+        if not is_llm_image_services_enabled():
+            raise ValueError("LLM image services are not available")
 
-        openai_service = OpenAIService()
-        prompt = openai_service.get_prompt(
+        llm_service = get_llm_service()
+        prompt = llm_service.get_prompt(
             "recipes.parse-recipe-image",
             data_injections=[
-                OpenAIDataInjection(
+                LLMDataInjection(
                     description=(
                         "This is the JSON response schema. You must respond in valid JSON that follows this schema. "
-                        "Your payload should be as compact as possible, eliminating unncessesary whitespace. "
+                        "Your payload should be as compact as possible, eliminating unnecessary whitespace. "
                         "Any fields with default values which you do not populate should not be in the payload."
                     ),
                     value=OpenAIRecipe,
@@ -499,9 +504,9 @@ class OpenAIRecipeService(RecipeServiceBase):
             ],
         )
 
-        openai_images = [OpenAILocalImage(filename=os.path.basename(image), path=image) for image in images]
+        llm_images = [LLMLocalImage(filename=os.path.basename(image), path=image) for image in images]
         message = (
-            f"Please extract the recipe from the {'images' if len(openai_images) > 1 else 'image'} provided."
+            f"Please extract the recipe from the {'images' if len(llm_images) > 1 else 'image'} provided."
             "There should be exactly one recipe."
         )
 
@@ -509,11 +514,11 @@ class OpenAIRecipeService(RecipeServiceBase):
             message += f" Please translate the recipe to {translate_language}."
 
         try:
-            response = await openai_service.get_response(
-                prompt, message, images=openai_images, force_json_response=True
+            response = await llm_service.get_response(
+                prompt, message, images=llm_images, force_json_response=True
             )
         except Exception as e:
-            raise Exception("Failed to call OpenAI services") from e
+            raise Exception("Failed to call LLM services") from e
 
         try:
             openai_recipe = OpenAIRecipe.parse_openai_response(response)

@@ -43,6 +43,10 @@ def get_app_info(session: Session = Depends(generate_session)):
         oidc_provider_name=settings.OIDC_PROVIDER_NAME,
         enable_openai=settings.OPENAI_ENABLED,
         enable_openai_image_services=settings.OPENAI_ENABLED and settings.OPENAI_ENABLE_IMAGE_SERVICES,
+        enable_claude=getattr(settings, "CLAUDE_ENABLED", False),
+        enable_claude_image_services=getattr(settings, "CLAUDE_ENABLED", False) and getattr(settings, "CLAUDE_ENABLE_IMAGE_SERVICES", False),
+        enable_gemini=getattr(settings, "GEMINI_ENABLED", False),
+        enable_gemini_image_services=getattr(settings, "GEMINI_ENABLED", False) and getattr(settings, "GEMINI_ENABLE_IMAGE_SERVICES", False),
         allow_password_login=settings.ALLOW_PASSWORD_LOGIN,
     )
 

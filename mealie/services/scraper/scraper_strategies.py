@@ -16,6 +16,7 @@ from mealie.core.root_logger import get_logger
 from mealie.lang.providers import Translator
 from mealie.pkgs import safehttp
 from mealie.schema.recipe.recipe import Recipe, RecipeStep
+from mealie.services.llm_providers import get_llm_service, is_llm_provider_enabled
 from mealie.services.openai import OpenAIService
 from mealie.services.scraper.scraped_extras import ScrapedExtras
 
@@ -328,23 +329,22 @@ class RecipeScraperOpenAI(RecipeScraperPackage):
         return "\n".join(components)
 
     async def get_html(self, url: str) -> str:
-        settings = get_app_settings()
-        if not settings.OPENAI_ENABLED:
+        if not is_llm_provider_enabled():
             return ""
 
         html = self.raw_html or await safe_scrape_html(url)
         text = self.format_html_to_text(html)
         try:
-            service = OpenAIService()
+            service = get_llm_service()
             prompt = service.get_prompt("recipes.scrape-recipe")
 
             response_json = await service.get_response(prompt, text, force_json_response=True)
             if not response_json:
-                raise Exception("OpenAI did not return any data")
+                raise Exception("LLM did not return any data")
 
             return self.ld_json_to_html(response_json)
         except Exception:
-            self.logger.exception(f"OpenAI was unable to extract a recipe from {url}")
+            self.logger.exception(f"LLM was unable to extract a recipe from {url}")
             return ""
 
 

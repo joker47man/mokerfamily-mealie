@@ -387,6 +387,15 @@ class AppSettings(AppLoggingSettings):
         return self.OIDC_FEATURE.enabled
 
     # ===============================================
+    # LLM Provider Configuration
+
+    LLM_PROVIDER: str | None = None
+    """
+    Specify which LLM provider to use: 'openai', 'claude', or 'gemini'.
+    If not set, the first enabled provider will be used (OpenAI has priority for backwards compatibility)
+    """
+
+    # ===============================================
     # OpenAI Configuration
 
     OPENAI_BASE_URL: str | None = None
@@ -433,6 +442,92 @@ class AppSettings(AppLoggingSettings):
     def OPENAI_ENABLED(self) -> bool:
         """Validates OpenAI settings are all set"""
         return self.OPENAI_FEATURE.enabled
+
+    # ===============================================
+    # Claude (Anthropic) Configuration
+
+    CLAUDE_BASE_URL: str | None = None
+    """The base URL for the Claude API. Leave this unset for most usecases"""
+    CLAUDE_API_KEY: MaskedNoneString = None
+    """Your Anthropic API key. Required to enable Claude features"""
+    CLAUDE_MODEL: str = "claude-3-5-sonnet-20241022"
+    """Which Claude model to send requests to"""
+    CLAUDE_ENABLE_IMAGE_SERVICES: bool = True
+    """Whether to enable image-related features in Claude"""
+    CLAUDE_WORKERS: int = 2
+    """
+    Number of Claude workers per request. Higher values may increase
+    processing speed, but will incur additional API costs
+    """
+    CLAUDE_SEND_DATABASE_DATA: bool = True
+    """
+    Sending database data may increase accuracy in certain requests,
+    but will incur additional API costs
+    """
+    CLAUDE_REQUEST_TIMEOUT: int = 300
+    """
+    The number of seconds to wait for a Claude request to complete before cancelling the request
+    """
+
+    @property
+    def CLAUDE_FEATURE(self) -> FeatureDetails:
+        description = None
+        if not self.CLAUDE_API_KEY:
+            description = "CLAUDE_API_KEY is not set"
+        elif not self.CLAUDE_MODEL:
+            description = "CLAUDE_MODEL is not set"
+
+        return FeatureDetails(
+            enabled=bool(self.CLAUDE_API_KEY and self.CLAUDE_MODEL),
+            description=description,
+        )
+
+    @property
+    def CLAUDE_ENABLED(self) -> bool:
+        """Validates Claude settings are all set"""
+        return self.CLAUDE_FEATURE.enabled
+
+    # ===============================================
+    # Gemini (Google) Configuration
+
+    GEMINI_API_KEY: MaskedNoneString = None
+    """Your Google API key. Required to enable Gemini features"""
+    GEMINI_MODEL: str = "gemini-1.5-flash"
+    """Which Gemini model to send requests to"""
+    GEMINI_ENABLE_IMAGE_SERVICES: bool = True
+    """Whether to enable image-related features in Gemini"""
+    GEMINI_WORKERS: int = 2
+    """
+    Number of Gemini workers per request. Higher values may increase
+    processing speed, but will incur additional API costs
+    """
+    GEMINI_SEND_DATABASE_DATA: bool = True
+    """
+    Sending database data may increase accuracy in certain requests,
+    but will incur additional API costs
+    """
+    GEMINI_REQUEST_TIMEOUT: int = 300
+    """
+    The number of seconds to wait for a Gemini request to complete before cancelling the request
+    """
+
+    @property
+    def GEMINI_FEATURE(self) -> FeatureDetails:
+        description = None
+        if not self.GEMINI_API_KEY:
+            description = "GEMINI_API_KEY is not set"
+        elif not self.GEMINI_MODEL:
+            description = "GEMINI_MODEL is not set"
+
+        return FeatureDetails(
+            enabled=bool(self.GEMINI_API_KEY and self.GEMINI_MODEL),
+            description=description,
+        )
+
+    @property
+    def GEMINI_ENABLED(self) -> bool:
+        """Validates Gemini settings are all set"""
+        return self.GEMINI_FEATURE.enabled
 
     # ===============================================
     # Web Concurrency

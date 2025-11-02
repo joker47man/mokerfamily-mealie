@@ -4,6 +4,23 @@ from .base import BaseLLMService
 from .providers import ClaudeProvider, GeminiProvider, OpenAIProvider
 
 
+def _get_provider_states(settings) -> dict[str, bool]:
+    """
+    Helper function to get the enabled state of all providers.
+    
+    Args:
+        settings: AppSettings instance
+        
+    Returns:
+        Dictionary with provider names as keys and their enabled state as values
+    """
+    return {
+        "openai": settings.OPENAI_ENABLED,
+        "claude": getattr(settings, "CLAUDE_ENABLED", False),
+        "gemini": getattr(settings, "GEMINI_ENABLED", False),
+    }
+
+
 def is_llm_provider_enabled() -> bool:
     """
     Check if any LLM provider is enabled.
@@ -12,11 +29,8 @@ def is_llm_provider_enabled() -> bool:
         True if at least one LLM provider is configured and enabled
     """
     settings = get_app_settings()
-    return (
-        settings.OPENAI_ENABLED
-        or getattr(settings, "CLAUDE_ENABLED", False)
-        or getattr(settings, "GEMINI_ENABLED", False)
-    )
+    provider_states = _get_provider_states(settings)
+    return any(provider_states.values())
 
 
 def is_llm_image_services_enabled() -> bool:
@@ -42,23 +56,21 @@ def get_active_provider_name() -> str | None:
         The name of the active provider ('OpenAI', 'Claude', 'Gemini') or None if none are enabled
     """
     settings = get_app_settings()
+    provider_states = _get_provider_states(settings)
     
-    provider = getattr(settings, "LLM_PROVIDER", None)
-    if provider:
-        provider = provider.lower()
-        if provider == "openai" and settings.OPENAI_ENABLED:
-            return "OpenAI"
-        elif provider == "claude" and getattr(settings, "CLAUDE_ENABLED", False):
-            return "Claude"
-        elif provider == "gemini" and getattr(settings, "GEMINI_ENABLED", False):
-            return "Gemini"
+    # Check if a specific provider is configured
+    configured_provider = getattr(settings, "LLM_PROVIDER", None)
+    if configured_provider:
+        provider_key = configured_provider.lower()
+        if provider_key in provider_states and provider_states[provider_key]:
+            return configured_provider.capitalize()
     
-    # Fall back to auto-detection
-    if settings.OPENAI_ENABLED:
+    # Fall back to auto-detection (priority order: OpenAI, Claude, Gemini)
+    if provider_states["openai"]:
         return "OpenAI"
-    elif getattr(settings, "CLAUDE_ENABLED", False):
+    elif provider_states["claude"]:
         return "Claude"
-    elif getattr(settings, "GEMINI_ENABLED", False):
+    elif provider_states["gemini"]:
         return "Gemini"
     
     return None
@@ -76,27 +88,28 @@ def get_llm_service() -> BaseLLMService:
     5. If none are enabled, raise an error
     """
     settings = get_app_settings()
+    provider_states = _get_provider_states(settings)
     
     # Check if a specific provider is configured
-    provider = getattr(settings, "LLM_PROVIDER", None)
+    configured_provider = getattr(settings, "LLM_PROVIDER", None)
     
-    if provider:
-        provider = provider.lower()
-        if provider == "openai":
+    if configured_provider:
+        provider_key = configured_provider.lower()
+        if provider_key == "openai":
             return OpenAIProvider()
-        elif provider == "claude":
+        elif provider_key == "claude":
             return ClaudeProvider()
-        elif provider == "gemini":
+        elif provider_key == "gemini":
             return GeminiProvider()
         else:
-            raise ValueError(f"Unknown LLM provider: {provider}")
+            raise ValueError(f"Unknown LLM provider: {configured_provider}")
     
     # Fall back to auto-detection for backwards compatibility
-    if settings.OPENAI_ENABLED:
+    if provider_states["openai"]:
         return OpenAIProvider()
-    elif hasattr(settings, "CLAUDE_ENABLED") and settings.CLAUDE_ENABLED:
+    elif provider_states["claude"]:
         return ClaudeProvider()
-    elif hasattr(settings, "GEMINI_ENABLED") and settings.GEMINI_ENABLED:
+    elif provider_states["gemini"]:
         return GeminiProvider()
     else:
         raise ValueError("No LLM provider is enabled. Please configure OpenAI, Claude, or Gemini.")

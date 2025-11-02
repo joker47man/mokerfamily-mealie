@@ -6,7 +6,13 @@ from fastapi import APIRouter, File, UploadFile
 from mealie.core.dependencies.dependencies import get_temporary_path
 from mealie.routes._base import BaseAdminController, controller
 from mealie.schema.admin.debug import DebugResponse
-from mealie.services.llm_providers import LLMLocalImage, get_llm_service
+from mealie.services.llm_providers import (
+    LLMLocalImage,
+    get_active_provider_name,
+    get_llm_service,
+    is_llm_image_services_enabled,
+    is_llm_provider_enabled,
+)
 from mealie.services.openai import OpenAILocalImage, OpenAIService
 
 router = APIRouter(prefix="/debug")
@@ -18,30 +24,13 @@ class AdminDebugController(BaseAdminController):
     async def debug_openai(self, image: UploadFile | None = File(None)):
         """Debug endpoint for LLM providers (maintained as /openai for backwards compatibility)"""
         
-        # Check if any LLM provider is enabled
-        llm_enabled = (
-            self.settings.OPENAI_ENABLED 
-            or (hasattr(self.settings, "CLAUDE_ENABLED") and self.settings.CLAUDE_ENABLED)
-            or (hasattr(self.settings, "GEMINI_ENABLED") and self.settings.GEMINI_ENABLED)
-        )
-        
-        if not llm_enabled:
+        if not is_llm_provider_enabled():
             return DebugResponse(success=False, response="No LLM provider is enabled")
         
-        # Check if image services are enabled for the configured provider
-        if image:
-            image_services_enabled = False
-            if self.settings.OPENAI_ENABLED and self.settings.OPENAI_ENABLE_IMAGE_SERVICES:
-                image_services_enabled = True
-            elif hasattr(self.settings, "CLAUDE_ENABLED") and self.settings.CLAUDE_ENABLED and self.settings.CLAUDE_ENABLE_IMAGE_SERVICES:
-                image_services_enabled = True
-            elif hasattr(self.settings, "GEMINI_ENABLED") and self.settings.GEMINI_ENABLED and self.settings.GEMINI_ENABLE_IMAGE_SERVICES:
-                image_services_enabled = True
-            
-            if not image_services_enabled:
-                return DebugResponse(
-                    success=False, response="Image was provided, but LLM image services are not enabled"
-                )
+        if image and not is_llm_image_services_enabled():
+            return DebugResponse(
+                success=False, response="Image was provided, but LLM image services are not enabled"
+            )
 
         with get_temporary_path() as temp_path:
             if image:
@@ -64,16 +53,7 @@ class AdminDebugController(BaseAdminController):
                     prompt, message, images=local_images, force_json_response=False
                 )
                 
-                # Determine which provider was used
-                provider_name = getattr(self.settings, "LLM_PROVIDER", None) or "LLM"
-                if not provider_name or provider_name == "LLM":
-                    if self.settings.OPENAI_ENABLED:
-                        provider_name = "OpenAI"
-                    elif hasattr(self.settings, "CLAUDE_ENABLED") and self.settings.CLAUDE_ENABLED:
-                        provider_name = "Claude"
-                    elif hasattr(self.settings, "GEMINI_ENABLED") and self.settings.GEMINI_ENABLED:
-                        provider_name = "Gemini"
-                
+                provider_name = get_active_provider_name() or "LLM"
                 return DebugResponse(success=True, response=f'{provider_name} is working. Response: "{response}"')
 
             except Exception as e:

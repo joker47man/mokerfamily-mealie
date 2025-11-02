@@ -30,7 +30,12 @@ from mealie.schema.recipe.request_helpers import RecipeDuplicate
 from mealie.schema.user.user import PrivateUser, UserRatingCreate
 from mealie.services._base_service import BaseService
 from mealie.services.household_services.household_service import HouseholdService
-from mealie.services.llm_providers import LLMDataInjection, LLMLocalImage, get_llm_service
+from mealie.services.llm_providers import (
+    LLMDataInjection,
+    LLMLocalImage,
+    get_llm_service,
+    is_llm_image_services_enabled,
+)
 from mealie.services.openai import OpenAIDataInjection, OpenAILocalImage, OpenAIService
 from mealie.services.recipe.recipe_data_service import RecipeDataService
 from mealie.services.scraper import cleaner
@@ -481,18 +486,7 @@ class OpenAIRecipeService(RecipeServiceBase):
         )
 
     async def build_recipe_from_images(self, images: list[Path], translate_language: str | None) -> Recipe:
-        settings = get_app_settings()
-        
-        # Check if any LLM provider with image services is enabled
-        llm_enabled = False
-        if settings.OPENAI_ENABLED and settings.OPENAI_ENABLE_IMAGE_SERVICES:
-            llm_enabled = True
-        elif hasattr(settings, "CLAUDE_ENABLED") and settings.CLAUDE_ENABLED and settings.CLAUDE_ENABLE_IMAGE_SERVICES:
-            llm_enabled = True
-        elif hasattr(settings, "GEMINI_ENABLED") and settings.GEMINI_ENABLED and settings.GEMINI_ENABLE_IMAGE_SERVICES:
-            llm_enabled = True
-        
-        if not llm_enabled:
+        if not is_llm_image_services_enabled():
             raise ValueError("LLM image services are not available")
 
         llm_service = get_llm_service()
@@ -502,7 +496,7 @@ class OpenAIRecipeService(RecipeServiceBase):
                 LLMDataInjection(
                     description=(
                         "This is the JSON response schema. You must respond in valid JSON that follows this schema. "
-                        "Your payload should be as compact as possible, eliminating unncessesary whitespace. "
+                        "Your payload should be as compact as possible, eliminating unnecessary whitespace. "
                         "Any fields with default values which you do not populate should not be in the payload."
                     ),
                     value=OpenAIRecipe,

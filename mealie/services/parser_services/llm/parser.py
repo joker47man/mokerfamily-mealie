@@ -117,7 +117,7 @@ class LLMParser(ABCIngredientParser):
             LLMDataInjection(
                 description=(
                     "This is the JSON response schema. You must respond in valid JSON that follows this schema. "
-                    "Your payload should be as compact as possible, eliminating unncessesary whitespace. Any fields "
+                    "Your payload should be as compact as possible, eliminating unnecessary whitespace. Any fields "
                     "with default values which you do not populate should not be in the payload."
                 ),
                 value=OpenAIIngredients,

@@ -16,7 +16,7 @@ from mealie.core.root_logger import get_logger
 from mealie.lang.providers import Translator
 from mealie.pkgs import safehttp
 from mealie.schema.recipe.recipe import Recipe, RecipeStep
-from mealie.services.llm_providers import get_llm_service
+from mealie.services.llm_providers import get_llm_service, is_llm_provider_enabled
 from mealie.services.openai import OpenAIService
 from mealie.services.scraper.scraped_extras import ScrapedExtras
 
@@ -329,16 +329,7 @@ class RecipeScraperOpenAI(RecipeScraperPackage):
         return "\n".join(components)
 
     async def get_html(self, url: str) -> str:
-        settings = get_app_settings()
-        
-        # Check if any LLM provider is enabled
-        llm_enabled = (
-            settings.OPENAI_ENABLED 
-            or (hasattr(settings, "CLAUDE_ENABLED") and settings.CLAUDE_ENABLED)
-            or (hasattr(settings, "GEMINI_ENABLED") and settings.GEMINI_ENABLED)
-        )
-        
-        if not llm_enabled:
+        if not is_llm_provider_enabled():
             return ""
 
         html = self.raw_html or await safe_scrape_html(url)
